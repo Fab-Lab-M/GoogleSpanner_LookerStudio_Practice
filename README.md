@@ -36,4 +36,10 @@ END
 ```
 That allows us to make a discrete color scale with 0 as the mid value.
 
+The page has filters to see how the relation changes depending on the customer and the product category.
+
+## Sales trend report
+This page wants to show how sales grows from 2022 to 2025. For that reason a trend line was added to the visualization.
+
+The report has the possibility to filter the data by location, customer segment and category/subcategory.
 
