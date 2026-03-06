@@ -28,7 +28,7 @@ This report has some limitations. The ideal situation would be to calculate the 
 ## Sales by state report
 The purpose of this report is to show the amount sold in a date range between the different states of the USA. You will see 2 metrics in the graph. Sales, represented by the size of the bubble, and profit, which is represented by the color of the bubble.
 
-The color representation was limited in Looker studio. To do this we had to make a calculated field using this formula:
+The color representation was limited in Looker Studio. To do this we had to make a calculated field using this formula:
 ```
 CASE
   WHEN Profit > 0 THEN "Positive"
