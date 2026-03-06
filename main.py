@@ -51,7 +51,7 @@ class OrdersDataFrame:
     def sales_by_subcategory(self):
         return self.orders.groupby(['Category','Sub-Category'])['Sales'].sum()
 
-# ─── Constructor for the GoogleSpanner database ───
+# ─── GoogleSpanner database Class───
 class GoogleSpannerDB:
 
     def __init__(self, orders_dataframe: OrdersDataFrame):
