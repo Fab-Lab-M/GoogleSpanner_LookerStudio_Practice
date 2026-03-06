@@ -27,8 +27,10 @@ One of the most important features is that allows the user to compare the sales 
 The propouse of this report is to show the amount sold in a date rage between the different states of the USA. You will see 2 metrics in the graph. Sales, represented by the size of the bubble and profit which is represented with the color of the bubble.
 
 The color representation was limited in Looker studio. To do this we had to make a calculated field using this formula:
-```CASE
+```
+CASE
   WHEN Profit > 0 THEN "Positive"
   WHEN Profit < 0 THEN "Negative"
   ELSE "Zero"
-END```
+END
+```
