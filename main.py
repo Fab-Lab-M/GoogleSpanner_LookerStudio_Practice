@@ -9,14 +9,13 @@ from dotenv import load_dotenv
 # ─── Load Environment Variables ───
 load_dotenv()
 
-# ─── Point to the emulator ───
-
+# ─── Point to the instance ───
 PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
 INSTANCE_ID = os.getenv("SPANNER_INSTANCE_ID")
 DATABASE_ID = os.getenv("SPANNER_DATABASE_ID", "superstore-db")
 BATCH_SIZE = 500
 
-# ─── Constructor for the orders data in pandas ───
+# ─── Orders data in pandas ───
 class OrdersDataFrame:
     def __init__(self):
         self.file_directory = "sample_superstore.xlsx"
@@ -36,6 +35,7 @@ class OrdersDataFrame:
         for col in cols_to_fix:
             self.orders[col] = self.orders[col].apply(lambda x: Decimal(str(round(x, 5))))
 
+    # ─── Methods to make the  ───
     def total_sales(self):
         return self.orders['Sales'].sum()
 
