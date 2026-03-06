@@ -1,6 +1,7 @@
 # ─── Packages needed ───
 import os
 import pandas as pd
+from decimal import Decimal
 from google.cloud import spanner
 from google.auth.credentials import AnonymousCredentials
 from google.api_core.exceptions import AlreadyExists
@@ -17,15 +18,36 @@ BATCH_SIZE = 500
 class OrdersDataFrame:
     def __init__(self):
         self.file_directory = "sample_superstore.xlsx"
+        print("📂 Loading Excel file...")
         self.orders = pd.read_excel(self.file_directory, sheet_name="Orders")
         self.people = pd.read_excel(self.file_directory, sheet_name="People")
         self.returns = pd.read_excel(self.file_directory, sheet_name="Returns")
+
+        # Filter out Canada rows. We only want to analyze the US sales.
+        self.orders = self.orders[self.orders["Country/Region"] != "Canada"]
+
+        # Filter out the data from after 2025-10-31. Mainly to test an scenario in the visualization
+        self.orders = self.orders[self.orders["Order Date"] <= "2025-10-31"]
+
+        # Added to make this columns NUMERIC in the DDL
+        cols_to_fix = ['Sales', 'Profit', 'Discount']
+        for col in cols_to_fix:
+            self.orders[col] = self.orders[col].apply(lambda x: Decimal(str(round(x, 5))))
 
     def total_sales(self):
         return self.orders['Sales'].sum()
 
     def total_quantity(self):
         return self.orders['Quantity'].sum()
+
+    def sales_by_year(self):
+        return self.orders.groupby(self.orders['Order Date'].dt.year)['Sales'].sum()
+
+    def sales_by_category(self):
+        return self.orders.groupby('Category')['Sales'].sum()
+
+    def sales_by_subcategory(self):
+        return self.orders.groupby(['Category','Sub-Category'])['Sales'].sum()
 
 # ─── Constructor for the GoogleSpanner database ───
 class GoogleSpannerDB:
@@ -63,60 +85,58 @@ class GoogleSpannerDB:
     # ──────────────────────────────────
 
     def create_database(self):
-        db = self.instance.database(
-            DATABASE_ID,
-            ddl_statements=[
-                # ─── People table ───
-                """CREATE TABLE People
-                   (
-                       Person STRING(100),
-                       Region STRING(50) NOT NULL,
-                   ) PRIMARY KEY (Region)""",
+        database_ddl = [
+            # ─── People table ───
+            """CREATE TABLE People
+               (
+                   Person STRING(100),
+                   Region STRING(50),
+               ) PRIMARY KEY (Region)""",
 
-                # ─── Orders table (FK → People) ───
-                """CREATE TABLE Orders
-                   (
-                       RowID        INT64 NOT NULL,
-                       OrderID      STRING(50),
-                       OrderDate    DATE,
-                       ShipDate     DATE,
-                       ShipMode     STRING(50),
-                       CustomerID   STRING(50),
-                       CustomerName STRING(100),
-                       Segment      STRING(50),
-                       Country      STRING(50),
-                       City         STRING(100),
-                       State        STRING(50),
-                       PostalCode   STRING(20),
-                       Region       STRING(50),
-                       ProductID    STRING(50),
-                       Category     STRING(50),
-                       SubCategory  STRING(50),
-                       ProductName  STRING(MAX),
-                       Sales        FLOAT64,
-                       Quantity     INT64,
-                       Discount     FLOAT64,
-                       Profit       FLOAT64,
-                       CONSTRAINT FK_Orders_People
-                           FOREIGN KEY (Region)
-                               REFERENCES People (Region),
-                   ) PRIMARY KEY (RowID)""",
+            # ─── Orders table ───
+            """CREATE TABLE Orders
+               (
+                   RowID        INT64 NOT NULL,
+                   OrderID      STRING(50),
+                   OrderDate    DATE,
+                   ShipDate     DATE,
+                   ShipMode     STRING(50),
+                   CustomerID   STRING(50),
+                   CustomerName STRING(100),
+                   Segment      STRING(50),
+                   Country      STRING(50),
+                   City         STRING(100),
+                   State        STRING(50),
+                   PostalCode   STRING(20),
+                   Region       STRING(50),
+                   ProductID    STRING(50),
+                   Category     STRING(50),
+                   SubCategory  STRING(50),
+                   ProductName  STRING(MAX),
+                   Sales        NUMERIC,
+                   Quantity     INT64,
+                   Discount     NUMERIC,
+                   Profit       NUMERIC,
+                   CONSTRAINT FK_Orders_Region FOREIGN KEY (Region) REFERENCES People (Region)
+               ) PRIMARY KEY (OrderID, RowID)""",
 
-                # ─── Returns table (FK → Orders) ───
-                """CREATE TABLE Returns
-                   (
-                       ReturnID INT64 NOT NULL,
-                       Returned STRING(10),
-                       OrderID  STRING(50),
-                   ) PRIMARY KEY (ReturnID)""",
-            ],
-        )
+            # ─── Returns table (standalone, no interleave) ───
+            """CREATE TABLE Returns
+               (
+                   OrderID  STRING(50) NOT NULL,
+                   Returned STRING(10),
+               ) PRIMARY KEY (OrderID)"""
+        ]
 
         try:
-            operation = db.create()
-            operation.result()
+            db = self.instance.database(
+                DATABASE_ID,
+                ddl_statements=database_ddl,
+            )
+            db.create().result()
             print(f"✅ Database '{DATABASE_ID}' created.")
         except AlreadyExists:
+            db = self.instance.database(DATABASE_ID)
             print(f"ℹ️ Database '{DATABASE_ID}' already exists, reusing it.")
 
         self.database = db
@@ -141,22 +161,20 @@ class GoogleSpannerDB:
         df["Ship Date"] = df["Ship Date"].dt.strftime("%Y-%m-%d")
         df["Postal Code"] = df["Postal Code"].fillna("").astype(str)
 
-        # DataFrame column names (must match Excel exactly)
         columns = [
             "RowID", "Order ID", "Order Date", "Ship Date", "Ship Mode",
             "Customer ID", "Customer Name", "Segment", "Country/Region", "City",
             "State/Province", "Postal Code", "Region", "Product ID", "Category",
             "Sub-Category", "Product Name", "Sales", "Quantity",
-            "Discount", "Profit",
+            "Discount", "Profit"
         ]
 
-        # Spanner column names (must match your CREATE TABLE)
         spanner_columns = [
             "RowID", "OrderID", "OrderDate", "ShipDate", "ShipMode",
             "CustomerID", "CustomerName", "Segment", "Country", "City",
             "State", "PostalCode", "Region", "ProductID", "Category",
             "SubCategory", "ProductName", "Sales", "Quantity",
-            "Discount", "Profit",
+            "Discount", "Profit"
         ]
 
         for i in range(0, len(df), BATCH_SIZE):
@@ -171,18 +189,20 @@ class GoogleSpannerDB:
 
     def upload_returns(self):
         df = self.orders_dataframe.returns.copy()
-        df["ReturnID"] = range(1, len(df) + 1)
 
         with self.database.batch() as batch:
             batch.insert_or_update(
                 table="Returns",
-                columns=["ReturnID", "Returned", "OrderID"],
-                values=df[["ReturnID", "Returned", "Order ID"]].values.tolist(),
+                columns=["OrderID", "Returned"],
+                values=df[["Order ID", "Returned"]].values.tolist(),
             )
         print(f"✅ Uploaded {len(df)} rows to 'Returns'.")
 
 if __name__ == '__main__':
     sample_superstore = OrdersDataFrame()
+    print(sample_superstore.sales_by_year())
+    print(sample_superstore.sales_by_category())
+    print(sample_superstore.sales_by_subcategory())
     spanner_database = GoogleSpannerDB(sample_superstore)
     spanner_database.create_instance()
     spanner_database.create_database()
