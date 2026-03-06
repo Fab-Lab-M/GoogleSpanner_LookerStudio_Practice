@@ -35,7 +35,7 @@ class OrdersDataFrame:
         for col in cols_to_fix:
             self.orders[col] = self.orders[col].apply(lambda x: Decimal(str(round(x, 5))))
 
-    # ─── Methods to make the  ───
+    # ─── Methods to make the cross-check process───
     def total_sales(self):
         return self.orders['Sales'].sum()
 
