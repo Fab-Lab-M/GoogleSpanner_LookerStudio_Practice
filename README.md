@@ -34,3 +34,6 @@ CASE
   ELSE "Zero"
 END
 ```
+That allows us to make a discrete color scale with 0 as the mid value.
+
+
