@@ -8,3 +8,7 @@ You can find that report in the next public link: https://lookerstudio.google.co
 # Data set
 The set used is a Store Data set that has sales transactional fake data. The main reason to use this set is because the posible visualization for this set are known, the author has personal experience working with it and offer a good contras between what can be build with it in comparison with other tools.
 
+You will find the excel file as sample_superstore.xlsx.
+
+# 
+
