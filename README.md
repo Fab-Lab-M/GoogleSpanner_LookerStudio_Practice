@@ -23,7 +23,7 @@ The main objective of this view is to visualize the sales of the current year. I
 
 One of the most important features is that allows the user to compare the sales to date during the current year with the sales goal. It has a dinamic color configuration that changes the color of the difference when is positive to green and keep it in red until the goal is reached.
 
-This report has some limitations. The ideal situation would be to calculate the goal and the previus year difference based ont he selections of different variables as catagory or segment. But to do that, we would need to build a table that has this metrics and dimensions in the same row. Thats is totally possible to implement, but was prefered to not do it because of time margin limitations.
+This report has some limitations. The ideal situation would be to calculate the goal and the previus year difference based on the selections of different variables as catagory or segment. But to do that, we would need to build a table that has this metrics and dimensions in the same row. Thats is totally possible to implement, but was prefered to not do it because of time margin limitations.
 
 ## Sales by state report
 The propouse of this report is to show the amount sold in a date rage between the different states of the USA. You will see 2 metrics in the graph. Sales, represented by the size of the bubble and profit which is represented with the color of the bubble.
