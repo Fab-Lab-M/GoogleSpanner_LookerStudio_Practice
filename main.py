@@ -3,15 +3,17 @@ import os
 import pandas as pd
 from decimal import Decimal
 from google.cloud import spanner
-from google.auth.credentials import AnonymousCredentials
 from google.api_core.exceptions import AlreadyExists
+from dotenv import load_dotenv
+
+# ─── Load Environment Variables ───
+load_dotenv()
 
 # ─── Point to the emulator ───
-os.environ["SPANNER_EMULATOR_HOST"] = "localhost:9010"
 
-INSTANCE_ID = "test-instance"
-DATABASE_ID = "superstore-db"
-PROJECT_ID = "test-project"
+PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
+INSTANCE_ID = os.getenv("SPANNER_INSTANCE_ID")
+DATABASE_ID = os.getenv("SPANNER_DATABASE_ID", "superstore-db")
 BATCH_SIZE = 500
 
 # ─── Constructor for the orders data in pandas ───
@@ -26,7 +28,7 @@ class OrdersDataFrame:
         # Filter out Canada rows. We only want to analyze the US sales.
         self.orders = self.orders[self.orders["Country/Region"] != "Canada"]
 
-        # Filter out the data from after 2025-10-31. Mainly to test an scenario in the visualization
+        # Filter out the data from after 2025-10-31. Mainly to test n scenario in the visualization
         self.orders = self.orders[self.orders["Order Date"] <= "2025-10-31"]
 
         # Added to make this columns NUMERIC in the DDL
@@ -55,33 +57,12 @@ class GoogleSpannerDB:
     def __init__(self, orders_dataframe: OrdersDataFrame):
         self.orders_dataframe = orders_dataframe
 
-        # ─── Connect to the emulator ───
-        self.client = spanner.Client(
-            project=PROJECT_ID,
-            credentials=AnonymousCredentials(),
-        )
-        self.instance = None
+        self.client = spanner.Client(project=PROJECT_ID)
+        self.instance = self.client.instance(INSTANCE_ID)
         self.database = None
 
     # ──────────────────────────────────
-    # STEP 1: Create Instance
-    # ──────────────────────────────────
-    def create_instance(self):
-        config_name = f"projects/{PROJECT_ID}/instanceConfigs/emulator-config"
-        self.instance = self.client.instance(
-            INSTANCE_ID,
-            configuration_name=config_name,
-            display_name="Test Instance",
-        )
-        try:
-            self.instance.create()
-            print(f"✅ Instance '{INSTANCE_ID}' created.")
-
-        except AlreadyExists:
-            print(f"ℹ️ Instance '{INSTANCE_ID}' already exists, reusing it.")
-
-    # ──────────────────────────────────
-    # STEP 2: Create Database with Schema
+    # STEP 1: Create Database with Schema
     # ──────────────────────────────────
 
     def create_database(self):
@@ -142,7 +123,7 @@ class GoogleSpannerDB:
         self.database = db
 
     # ──────────────────────────────────
-    # STEP 3: Insert Data from DataFrames
+    # STEP 2: Insert Data from DataFrames
     # ──────────────────────────────────
     def upload_people(self):
         df = self.orders_dataframe.people
@@ -204,7 +185,6 @@ if __name__ == '__main__':
     print(sample_superstore.sales_by_category())
     print(sample_superstore.sales_by_subcategory())
     spanner_database = GoogleSpannerDB(sample_superstore)
-    spanner_database.create_instance()
     spanner_database.create_database()
     spanner_database.upload_people()
     spanner_database.upload_orders()
