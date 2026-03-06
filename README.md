@@ -15,3 +15,20 @@ The script has 2 clases that do the integration work. *OrdersDataFrame* turns th
 
 The second class is the *GoogleSpannerDB*. This one is responsible of the connection with the database, the DDL that build the database and the upload of the information.
 
+# Looker Studio Report
+The report has 3 pages and each thing has a different purpose we are going to review everyone of them.
+
+## 2025 Sales report (actual year)
+The main objective of this view is to visualize the sales of the current year. It has limited interactions but you can filter the elements inside it using the tree map that disaggregates the sales using the category and subcategory dimensions.
+
+One of the most important features is that allows the user to compare the sales to date during the current year with the sales goal. It has a dinamic color configuration that changes the color of the difference when is positive to green and keep it in red until the goal is reached.
+
+## Sales by state report
+The propouse of this report is to show the amount sold in a date rage between the different states of the USA. You will see 2 metrics in the graph. Sales, represented by the size of the bubble and profit which is represented with the color of the bubble.
+
+The color representation was limited in Looker studio. To do this we had to make a calculated field using this formula:
+```CASE
+  WHEN Profit > 0 THEN "Positive"
+  WHEN Profit < 0 THEN "Negative"
+  ELSE "Zero"
+END```
