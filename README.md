@@ -10,5 +10,8 @@ The set used is a Store Data set that has sales transactional fake data. The mai
 
 You will find the excel file as sample_superstore.xlsx.
 
-# 
+# Python Script
+The script has 2 clases that do the integration work. *OrdersDataFrame* turns the excel file into a data frame that allows us to filter and make some calculations over it to make a cross check and avoid mismatchs between the diferent data stages.
+
+The second class is the *GoogleSpannerDB*. This one is responsible of the connection with the database, the DDL that build the database and the upload of the information.
 
